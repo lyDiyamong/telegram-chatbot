@@ -87,7 +87,7 @@ class ChatConversation extends Component
 
             // Dispatch events
             $this->dispatch('messageReceived');
-            $this->dispatch('messageReceived')->to('telegram-user-list');
+            // $this->dispatch('messageReceived')->to('telegram-user-list');
         } catch (\Exception $e) {
             Log::error('Error sending message', [
                 'error' => $e->getMessage(),
@@ -108,7 +108,7 @@ class ChatConversation extends Component
             ]);
 
             $this->dispatch('messageReceived');
-            $this->dispatch('messageReceived')->to('telegram-user-list');
+            // $this->dispatch('messageReceived')->to('telegram-user-list');
         }
     }
 
