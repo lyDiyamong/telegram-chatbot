@@ -6,6 +6,7 @@ use App\Models\TelegramUser;
 use App\Models\TelegramMessage;
 use App\Contracts\FileServiceInterface;
 use App\Contracts\TelegramServiceInterface;
+use Illuminate\Support\Facades\Log;
 
 class TelegramMessageProcessor
 {
@@ -61,6 +62,13 @@ class TelegramMessageProcessor
     protected function processDocument(TelegramUser $user, array $document, ?string $caption): TelegramMessage
     {
         $fileUrl = $this->telegramService->getFileUrl($document['file_id']);
+
+        Log::info('Processing document', [
+            'fileUrl' => $fileUrl,
+            'document' => $document,
+            'caption' => $caption,
+        ]);
+
         $filePath = $this->fileService->uploadFromUrl(
             $fileUrl,
             'telegram/documents',

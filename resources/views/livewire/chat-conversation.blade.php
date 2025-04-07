@@ -57,7 +57,8 @@
                                 <p class="text-xs font-medium text-blue-400 mb-1">{{ $telegramUser->first_name }}</p>
                             @endif
                             @if ($message['imageUrl'])
-                                <img src="{{ $message['imageUrl'] }}" alt="Image" class="w-[200px] h-[200px] rounded-md mb-2">
+                                <img src="{{ $message['imageUrl'] }}" alt="Image"
+                                    class="w-[200px] h-[200px] rounded-md mb-2">
                             @endif
                             <p class="text-sm">{{ $message['message'] }}</p>
                             <div class="flex items-center justify-end gap-1 mt-1">
@@ -97,6 +98,8 @@
                 <flux:input type="text" wire:model="newMessage"
                     class="flex-1 bg-gray-800 border-gray-700 text-white placeholder-gray-400 focus:border-blue-500 focus:ring-blue-500"
                     placeholder="Type your message..." autocomplete="off" />
+
+                {{-- <flux:input /> --}}
                 <flux:button type="submit" color="blue">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                         <path
@@ -128,7 +131,7 @@
                 container.scrollTop = container.scrollHeight;
             }
         });
-    
+
         // Scroll to bottom when component is updated
         Livewire.hook('message.processed', (message, component) => {
             if (component.serverMemo.data.telegramUser) {
@@ -142,4 +145,4 @@
             }
         });
     });
-    </script>
+</script>
