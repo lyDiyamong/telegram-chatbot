@@ -15,15 +15,31 @@ class TelegramMessage extends Model
         'content',
         'from_admin',
         'is_read',
+        'file_path',
+        'file_type',
+        'file_name',
     ];
 
     protected $casts = [
         'from_admin' => 'boolean',
         'is_read' => 'boolean',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
     ];
 
-    public function user(): BelongsTo
+    /**
+     * Get the user that owns the message.
+     */
+    public function telegramUser(): BelongsTo
     {
         return $this->belongsTo(TelegramUser::class, 'telegram_user_id');
+    }
+
+    /**
+     * Alias for telegramUser() for backward compatibility
+     */
+    public function user(): BelongsTo
+    {
+        return $this->telegramUser();
     }
 }

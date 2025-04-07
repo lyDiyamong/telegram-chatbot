@@ -2,10 +2,11 @@
 
 namespace App\Services;
 
+use App\Contracts\TelegramServiceInterface;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
-class TelegramService
+class TelegramService implements TelegramServiceInterface
 {
     protected string $apiUrl;
     protected string $botToken;
@@ -41,5 +42,17 @@ class TelegramService
             ]);
             return false;
         }
+    }
+
+    public function getFileUrl(string $fileId): string
+    {
+        $response = Http::get("{$this->apiUrl}/getFile", ['file_id' => $fileId]);
+        
+        if (!$response->successful()) {
+            throw new \Exception('Failed to get file path from Telegram');
+        }
+        
+        $filePath = $response->json('result.file_path');
+        return "https://api.telegram.org/file/bot{$this->botToken}/{$filePath}";
     }
 }

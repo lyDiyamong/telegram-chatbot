@@ -11,9 +11,12 @@ return new class extends Migration
         Schema::create('telegram_messages', function (Blueprint $table) {
             $table->id();
             $table->foreignId('telegram_user_id')->constrained('telegram_users')->onDelete('cascade');
-            $table->text('content');
+            $table->text('content')->nullable();
             $table->boolean('from_admin')->default(false);
             $table->boolean('is_read')->default(false);
+            $table->string('file_path')->nullable()->after('content');
+            $table->string('file_type')->nullable()->after('file_path');
+            $table->string('file_name')->nullable()->after('file_type');
             $table->timestamps();
         });
     }

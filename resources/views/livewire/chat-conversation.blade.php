@@ -1,23 +1,4 @@
-<div class="bg-gray-900 rounded-lg shadow-xl h-screen border-l border-gray-800" x-data="{
-    scrollToBottom: function() {
-        const container = this.$refs.messageContainer;
-        if (container) {
-            container.scrollTop = container.scrollHeight;
-        }
-    },
-    isNearBottom: function() {
-        const container = this.$refs.messageContainer;
-        if (!container) return false;
-        return (container.scrollHeight - container.scrollTop - container.clientHeight) < 100;
-    }
-}"
-    x-init="$nextTick(() => scrollToBottom());
-    Livewire.on('conversationLoaded', () => {
-        $nextTick(() => scrollToBottom());
-    });
-    Livewire.on('messageSent', () => {
-        $nextTick(() => scrollToBottom());
-    });" wire:poll.10s>
+<div class="bg-gray-900 rounded-lg shadow-xl h-screen border-l border-gray-800" {{-- wire:poll.10s --}}>
     @if ($telegramUser)
         <!-- Chat Header -->
         <div class="p-4 border-b border-gray-800 bg-gray-850 flex items-center justify-between">
@@ -55,16 +36,8 @@
         </div>
 
         <!-- Chat Messages -->
-        <div class="h-[calc(100vh-10rem)] overflow-y-auto p-4 space-y-4 bg-gray-900 scroll-smooth"
-            x-ref="messageContainer"
-            @scroll="
-                if (isNearBottom()) {
-                    $el.dataset.autoScroll = 'true';
-                } else {
-                    $el.dataset.autoScroll = 'false';
-                }
-            "
-            wire:loading.class="opacity-50" data-auto-scroll="true">
+        <div class="h-[calc(100vh-10rem)] overflow-y-auto p-4 space-y-4 bg-gray-900 scroll-smooth" {{-- Auto scroll to bottom --}}
+            x-ref="messageContainer" x-init="$nextTick(() => { $refs.messageContainer.scrollTop = $refs.messageContainer.scrollHeight; })" wire:loading.class="opacity-50">
             @foreach ($messages as $message)
                 <div class="flex {{ $message['sender'] == 'admin' ? 'justify-end' : 'justify-start' }}"
                     wire:key="message-{{ $message['id'] }}">
@@ -120,8 +93,7 @@
             <form wire:submit.prevent="sendMessage" class="flex space-x-2">
                 <flux:input type="text" wire:model="newMessage"
                     class="flex-1 bg-gray-800 border-gray-700 text-white placeholder-gray-400 focus:border-blue-500 focus:ring-blue-500"
-                    placeholder="Type your message..." autocomplete="off"
-                    @keydown.enter="$nextTick(() => scrollToBottom())" />
+                    placeholder="Type your message..." autocomplete="off" />
                 <flux:button type="submit" color="blue">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                         <path
@@ -144,28 +116,27 @@
     @endif
 </div>
 
-@push('scripts')
-    <script>
-        document.addEventListener('livewire:initialized', () => {
-            // Watch for new messages being added to the DOM
-            const observer = new MutationObserver((mutations) => {
-                mutations.forEach((mutation) => {
-                    if (mutation.addedNodes.length && mutation.target.dataset.autoScroll ===
-                        'true') {
-                        const container = mutation.target;
-                        container.scrollTop = container.scrollHeight;
-                    }
-                });
-            });
-
-            // Start observing the messages container
-            const messagesContainer = document.getElementById('chat-messages');
-            if (messagesContainer) {
-                observer.observe(messagesContainer, {
-                    childList: true,
-                    subtree: true
-                });
+<script>
+    document.addEventListener('livewire:initialized', () => {
+        // Scroll to bottom when new message arrives
+        Livewire.on('scrollToBottom', () => {
+            const container = document.querySelector('[x-ref="messageContainer"]');
+            if (container) {
+                container.scrollTop = container.scrollHeight;
             }
         });
+    
+        // Scroll to bottom when component is updated
+        Livewire.hook('message.processed', (message, component) => {
+            if (component.serverMemo.data.telegramUser) {
+                const container = document.querySelector('[x-ref="messageContainer"]');
+                if (container) {
+                    // Small timeout ensures DOM is updated
+                    setTimeout(() => {
+                        container.scrollTop = container.scrollHeight;
+                    }, 50);
+                }
+            }
+        });
+    });
     </script>
-@endpush

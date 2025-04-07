@@ -76,7 +76,7 @@ class ChatConversation extends Component
                 'telegram_user_id' => $this->telegramUser->id,
                 'content' => $this->newMessage,
                 'from_admin' => true,
-                'is_read' => false, // Initially set as unread until we get confirmation
+                'is_read' => false,
             ]);
 
             // Send message via Telegram
@@ -99,6 +99,7 @@ class ChatConversation extends Component
             // Dispatch events
             $this->dispatch('messageReceived')->to('telegram-user-list');
             $this->dispatch('messageSent');
+            $this->dispatch('scrollToBottom');
         } catch (\Exception $e) {
             Log::error('Error sending message', [
                 'error' => $e->getMessage(),
@@ -132,7 +133,7 @@ class ChatConversation extends Component
 
         if ($latestMessages->isNotEmpty()) {
             $this->messages = $this->messages->concat($latestMessages);
-            $this->dispatch('messageSent');
+            $this->dispatch('scrollToBottom');
         }
     }
 
@@ -154,7 +155,9 @@ class ChatConversation extends Component
 
                 // Mark the message as read immediately if we're in the conversation
                 $message->update(['is_read' => true]);
+
                 $this->dispatch('messageReceived');
+                $this->dispatch('scrollToBottom');
             }
         }
     }
