@@ -56,6 +56,9 @@
                             @if ($message['sender'] != 'admin')
                                 <p class="text-xs font-medium text-blue-400 mb-1">{{ $telegramUser->first_name }}</p>
                             @endif
+                            @if ($message['imageUrl'])
+                                <img src="{{ $message['imageUrl'] }}" alt="Image" class="w-[200px] h-[200px] rounded-md mb-2">
+                            @endif
                             <p class="text-sm">{{ $message['message'] }}</p>
                             <div class="flex items-center justify-end gap-1 mt-1">
                                 <p

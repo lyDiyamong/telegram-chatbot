@@ -20,7 +20,7 @@ class TelegramUserList extends Component
     protected $listeners = [
         'echo:users,.user.added' => 'handleUserAdded',
         'echo:telegram-messages,.MessageReceived' => 'handleNewMessage',
-        'echo:telegram-messages,.MessageRead' => 'handleMessageRead'
+        // 'echo:telegram-messages,.MessageRead' => 'handleMessageRead'
     ];
 
     public function mount()

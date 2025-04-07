@@ -45,6 +45,7 @@ class ChatConversation extends Component
                     'id' => $message->id,
                     'sender' => $message->from_admin ? 'admin' : 'user',
                     'message' => $message->content,
+                    'imageUrl' => $message->file_path,
                     'created_at' => $message->created_at,
                     'is_read' => $message->is_read
                 ];
@@ -126,6 +127,7 @@ class ChatConversation extends Component
                     'id' => $message->id,
                     'sender' => $message->from_admin ? 'admin' : 'user',
                     'message' => $message->content,
+                    "imageUrl" => $message->file_path,
                     'created_at' => $message->created_at,
                     'is_read' => $message->is_read
                 ];
@@ -149,6 +151,7 @@ class ChatConversation extends Component
                     'id' => $message->id,
                     'sender' => 'user',
                     'message' => $message->content,
+                    "imageUrl" => $message->file_path,
                     'created_at' => $message->created_at,
                     'is_read' => $message->is_read
                 ]);
