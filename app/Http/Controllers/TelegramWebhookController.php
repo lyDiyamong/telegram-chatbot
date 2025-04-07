@@ -20,6 +20,7 @@ class TelegramWebhookController extends Controller
             if (!isset($data['message'])) {
                 return response()->json(['status' => 'success']); // Ignore non-message updates
             }
+            // dd($data);  
 
             $chatId = $data['message']['chat']['id'];
             $firstName = $data['message']['chat']['first_name'] ?? '';

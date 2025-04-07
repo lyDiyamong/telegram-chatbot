@@ -13,8 +13,8 @@ class TelegramMessageReceived implements ShouldBroadcast
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
     public function __construct(
-        public int $telegram_user_id,
-        public string $message
+        private int $telegram_user_id,
+        private string $message
     ) {}
 
     public function broadcastOn(): array
