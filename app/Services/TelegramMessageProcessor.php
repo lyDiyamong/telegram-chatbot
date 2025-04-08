@@ -34,6 +34,14 @@ class TelegramMessageProcessor
             return $this->processPhoto($telegramUser, $messageData['photo'], $messageData['caption'] ?? null);
         }
 
+        if (isset($messageData['voice'])) {
+            return $this->processAudio($telegramUser, $messageData['voice']);
+        }
+
+        if (isset($messageData['audio'])) {
+            return $this->processAudio($telegramUser, $messageData['audio']);
+        }
+
         return null;
     }
 
@@ -86,12 +94,35 @@ class TelegramMessageProcessor
         ]);
     }
 
+    protected function processAudio(TelegramUser $user, array $audio): TelegramMessage
+    {
+        $fileInfo = $this->telegramService->downloadFile($audio['file_id'], 'audio');
+        $filePath = $this->fileService->uploadFromUrl(
+            $fileInfo['url'],
+            'telegram/audio',
+            'audio_' . time() . '.ogg' // Telegram audio is usually in OGG format
+        );
+
+        Log::info("duration", ['duration' => $audio]);
+
+        return $this->telegramMessage->create([
+            'telegram_user_id' => $user->id,
+            'content' => null,
+            'file_path' => $filePath,
+            'file_type' => 'audio/ogg',
+            'file_name' => 'audio.ogg',
+            'duration' => $audio['duration'] ?? null,
+            'from_admin' => false,
+            'is_read' => false,
+        ]);
+    }
+
     protected function processPhoto(TelegramUser $user, array $photos, ?string $caption): TelegramMessage
     {
         // Get highest resolution photo (last in array)
         $photo = end($photos);
         $fileUrl = $this->telegramService->getFileUrl($photo['file_id']);
-        
+
         $filePath = $this->fileService->uploadFromUrl(
             $fileUrl,
             'telegram/photos',

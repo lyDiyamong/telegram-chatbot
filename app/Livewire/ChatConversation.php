@@ -45,9 +45,10 @@ class ChatConversation extends Component
                     'id' => $message->id,
                     'sender' => $message->from_admin ? 'admin' : 'user',
                     'message' => $message->content,
-                    'imageUrl' => $message->file_path,
+                    'file_path' => $message->file_path,
                     'created_at' => $message->created_at,
-                    'is_read' => $message->is_read
+                    'is_read' => $message->is_read,
+                    'file_type'=>$message->file_type
                 ];
             });
 
@@ -127,9 +128,10 @@ class ChatConversation extends Component
                     'id' => $message->id,
                     'sender' => $message->from_admin ? 'admin' : 'user',
                     'message' => $message->content,
-                    "imageUrl" => $message->file_path,
+                    "file_path" => $message->file_path,
                     'created_at' => $message->created_at,
-                    'is_read' => $message->is_read
+                    'is_read' => $message->is_read,
+                    'file_type'=>$message->file_type
                 ];
             });
 
@@ -151,9 +153,10 @@ class ChatConversation extends Component
                     'id' => $message->id,
                     'sender' => 'user',
                     'message' => $message->content,
-                    "imageUrl" => $message->file_path,
+                    "file_path" => $message->file_path,
                     'created_at' => $message->created_at,
-                    'is_read' => $message->is_read
+                    'is_read' => $message->is_read,
+                    'file_type'=>$message->file_type
                 ]);
 
                 // Mark the message as read immediately if we're in the conversation

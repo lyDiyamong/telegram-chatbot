@@ -17,6 +17,7 @@ return new class extends Migration
             $table->string('file_path')->nullable()->after('content');
             $table->string('file_type')->nullable()->after('file_path');
             $table->string('file_name')->nullable()->after('file_type');
+            $table->integer('duration')->nullable()->after('file_name');
             $table->timestamps();
         });
     }

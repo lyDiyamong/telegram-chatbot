@@ -47,12 +47,30 @@ class TelegramService implements TelegramServiceInterface
     public function getFileUrl(string $fileId): string
     {
         $response = Http::get("{$this->apiUrl}/getFile", ['file_id' => $fileId]);
-        
+
         if (!$response->successful()) {
             throw new \Exception('Failed to get file path from Telegram');
         }
-        
+
         $filePath = $response->json('result.file_path');
         return "https://api.telegram.org/file/bot{$this->botToken}/{$filePath}";
+    }
+
+    public function downloadFile(string $fileId, string $fileType = 'audio'): array
+    {
+        $response = Http::get("{$this->apiUrl}/getFile", ['file_id' => $fileId]);
+
+        if (!$response->successful()) {
+            throw new \Exception('Failed to get file path from Telegram');
+        }
+
+        $filePath = $response->json('result.file_path');
+        $fileUrl = "https://api.telegram.org/file/bot{$this->botToken}/{$filePath}";
+
+        return [
+            'url' => $fileUrl,
+            'path' => $filePath,
+            'type' => $fileType,
+        ];
     }
 }
