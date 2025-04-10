@@ -9,6 +9,7 @@ use App\Events\TelegramMessageReceived;
 use App\Models\TelegramMessage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Telegram\Bot\Laravel\Facades\Telegram;
 
 class TelegramWebhookController extends Controller
 {
@@ -22,6 +23,7 @@ class TelegramWebhookController extends Controller
             Log::info('Telegram webhook received', $request->all());
 
             $data = $request->all();
+            Telegram::commandsHandler(true);
 
             if (!isset($data['message'])) {
                 Log::info('No message in webhook data');
@@ -45,6 +47,11 @@ class TelegramWebhookController extends Controller
         }
     }
 
+    public function commandHandler() 
+    {
+        
+    }
+
     protected function broadcastEvents(TelegramMessage $message): void
     {
         try {
@@ -66,6 +73,8 @@ class TelegramWebhookController extends Controller
                 'user_id' => $message->telegramUser->id,
                 'content' => $message->content ?? '[File attachment]'
             ]);
+
+            
 
             // Broadcast user added event
             broadcast(new UserAdded($message->telegramUser))->toOthers();

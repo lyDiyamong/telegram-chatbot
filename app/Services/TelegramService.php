@@ -3,37 +3,31 @@
 namespace App\Services;
 
 use App\Contracts\TelegramServiceInterface;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Telegram\Bot\Api;
 
 class TelegramService implements TelegramServiceInterface
 {
-    protected string $apiUrl;
     protected string $botToken;
+    protected Api $telegram;
 
     public function __construct()
     {
         $this->botToken = config('services.telegram.bot_token');
-        $this->apiUrl = "https://api.telegram.org/bot{$this->botToken}";
+        $this->telegram = new Api($this->botToken);
     }
 
+    /**
+     * Send a text message to a Telegram chat.
+     */
     public function sendMessage(string $chatId, string $message): bool
     {
         try {
-            $response = Http::post("{$this->apiUrl}/sendMessage", [
+            $this->telegram->sendMessage([
                 'chat_id' => $chatId,
                 'text' => $message,
                 'parse_mode' => 'HTML',
             ]);
-
-            if (!$response->successful()) {
-                Log::error('Failed to send Telegram message', [
-                    'chat_id' => $chatId,
-                    'error' => $response->json(),
-                ]);
-                return false;
-            }
-
             return true;
         } catch (\Exception $e) {
             Log::error('Error sending Telegram message', [
@@ -44,33 +38,64 @@ class TelegramService implements TelegramServiceInterface
         }
     }
 
-    public function getFileUrl(string $fileId): string
+    /**
+     * Send a document file (e.g. PDF, DOCX) to Telegram chat.
+     */
+    public function sendDocument(string $chatId, string $localFilePath, ?string $caption = null): bool
     {
-        $response = Http::get("{$this->apiUrl}/getFile", ['file_id' => $fileId]);
-
-        if (!$response->successful()) {
-            throw new \Exception('Failed to get file path from Telegram');
+        try {
+            $this->telegram->sendDocument([
+                'chat_id' => $chatId,
+                'document' => fopen($localFilePath, 'r'),
+                'caption' => $caption,
+            ]);
+            return true;
+        } catch (\Exception $e) {
+            Log::error('Error sending Telegram document', [
+                'chat_id' => $chatId,
+                'error' => $e->getMessage(),
+            ]);
+            return false;
         }
-
-        $filePath = $response->json('result.file_path');
-        return "https://api.telegram.org/file/bot{$this->botToken}/{$filePath}";
     }
 
-    public function downloadFile(string $fileId, string $fileType = 'audio'): array
+    /**
+     * Get a Telegram file's full URL for download.
+     */
+    public function getFileUrl(string $fileId): string
     {
-        $response = Http::get("{$this->apiUrl}/getFile", ['file_id' => $fileId]);
-
-        if (!$response->successful()) {
+        try {
+            $file = $this->telegram->getFile(['file_id' => $fileId]);
+            return "https://api.telegram.org/file/bot{$this->botToken}/{$file->filePath}";
+        } catch (\Exception $e) {
+            Log::error('Error getting Telegram file URL', [
+                'file_id' => $fileId,
+                'error' => $e->getMessage(),
+            ]);
             throw new \Exception('Failed to get file path from Telegram');
         }
+    }
 
-        $filePath = $response->json('result.file_path');
-        $fileUrl = "https://api.telegram.org/file/bot{$this->botToken}/{$filePath}";
+    /**
+     * Get file metadata and direct download link from Telegram.
+     */
+    public function downloadFile(string $fileId, string $fileType = 'file'): array
+    {
+        try {
+            $file = $this->telegram->getFile(['file_id' => $fileId]);
+            $filePath = $file->filePath;
 
-        return [
-            'url' => $fileUrl,
-            'path' => $filePath,
-            'type' => $fileType,
-        ];
+            return [
+                'url' => "https://api.telegram.org/file/bot{$this->botToken}/{$filePath}",
+                'path' => $filePath,
+                'type' => $fileType,
+            ];
+        } catch (\Exception $e) {
+            Log::error('Error downloading Telegram file', [
+                'file_id' => $fileId,
+                'error' => $e->getMessage(),
+            ]);
+            throw new \Exception('Failed to get file path from Telegram');
+        }
     }
 }
