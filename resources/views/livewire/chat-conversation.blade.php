@@ -1,7 +1,13 @@
-<div class="bg-gray-900 rounded-lg shadow-xl h-screen border-l border-gray-800" {{-- wire:poll.10s --}}>
+<div class="bg-gray-900 rounded-lg shadow-xl h-screen border-l border-gray-800" >
     @if ($telegramUser)
         <!-- Chat Header -->
-        <div class="p-4 border-b border-gray-800 bg-gray-850 flex items-center justify-between">
+        <div x-data x-init="$nextTick(() => {
+            const messageContainer = document.getElementById('chat-messages');
+            if (messageContainer) {
+                messageContainer.scrollTop = messageContainer.scrollHeight;
+            }
+        })"
+            class="p-4 border-b border-gray-800 bg-gray-850 flex items-center justify-between">
             <div class="flex items-center space-x-3">
                 <div class="flex-shrink-0">
                     <div
@@ -56,11 +62,13 @@
                             @if ($message['sender'] != 'admin')
                                 <p class="text-xs font-medium text-blue-400 mb-1">{{ $telegramUser->first_name }}</p>
                             @endif
-                            @if (explode('/', $message['file_type'])[0] == 'image')
-                                <img src="{{ $message['file_path'] }}" alt="Image"
-                                    class="w-[200px] h-[200px] rounded-md mb-2">
-                            @elseif (explode('/', $message['file_type'])[0] == 'audio')
-                                <livewire:voice-audio :audio="$message['file_path']" />
+                            @if (isset($message['file_type']))
+                                @if (explode('/', $message['file_type'])[0] == 'image')
+                                    <img src="{{ $message['file_path'] }}" alt="Image"
+                                        class="w-[200px] h-[200px] rounded-md mb-2">
+                                @elseif (explode('/', $message['file_type'])[0] == 'audio')
+                                    <livewire:voice-audio :audio="$message['file_path']" />
+                                @endif
                             @endif
 
                             <p class="text-sm">{{ $message['message'] }}</p>
@@ -127,25 +135,32 @@
 
 <script>
     document.addEventListener('livewire:initialized', () => {
-        // Scroll to bottom when new message arrives
-        Livewire.on('scrollToBottom', () => {
-            const container = document.querySelector('[x-ref="messageContainer"]');
-            if (container) {
-                container.scrollTop = container.scrollHeight;
+        const scrollToBottom = () => {
+            const messageContainer = document.getElementById('chat-messages');
+            if (messageContainer) {
+                setTimeout(() => {
+                    messageContainer.scrollTop = messageContainer.scrollHeight;
+                }, 200);
             }
+        };
+
+        // When conversation is loaded
+        Livewire.on('conversationLoaded', () => {
+            scrollToBottom();
         });
 
-        // Scroll to bottom when component is updated
-        Livewire.hook('message.processed', (message, component) => {
-            if (component.serverMemo.data.telegramUser) {
-                const container = document.querySelector('[x-ref="messageContainer"]');
-                if (container) {
-                    // Small timeout ensures DOM is updated
-                    setTimeout(() => {
-                        container.scrollTop = container.scrollHeight;
-                    }, 50);
-                }
-            }
-        });
+        // When message is sent or received
+        Livewire.on('messageSent', scrollToBottom);
+        Livewire.on('messageReceived', scrollToBottom);
+
+        // Watch for changes in the messages container
+        const observer = new MutationObserver(scrollToBottom);
+        const messageContainer = document.getElementById('chat-messages');
+        if (messageContainer) {
+            observer.observe(messageContainer, {
+                childList: true,
+                subtree: true
+            });
+        }
     });
 </script>
