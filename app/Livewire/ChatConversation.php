@@ -2,20 +2,36 @@
 
 namespace App\Livewire;
 
+use App\Contracts\FileServiceInterface;
 use App\Jobs\Telegram\SendTelegramMessage;
 use Livewire\Component;
 use App\Models\TelegramUser;
 use App\Models\TelegramMessage;
-use App\Services\TelegramService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 use Livewire\Attributes\On;
+use Livewire\WithFileUploads;
 
 class ChatConversation extends Component
 {
+    use WithFileUploads;
+
     public ?TelegramUser $telegramUser = null;
     public string $newMessage = '';
     public Collection $messages;
+
+    private FileServiceInterface $fileService;
+
+    public function __construct()
+    {
+        $this->fileService = app(FileServiceInterface::class);
+    }
+
+    // #[Validate('nullable|string|max:1000')]
+    public $message;
+
+    // #[Validate('nullable|file|max:10240')] // 10MB Max
+    public $document;
 
     protected $listeners = [
         'echo:telegram-messages,.MessageReceived' => 'handleNewMessage'
@@ -48,7 +64,7 @@ class ChatConversation extends Component
                     'file_path' => $message->file_path,
                     'created_at' => $message->created_at,
                     'is_read' => $message->is_read,
-                    'file_type'=>$message->file_type
+                    'file_type' => $message->file_type
                 ];
             });
 
@@ -66,37 +82,82 @@ class ChatConversation extends Component
         $this->dispatch('conversationLoaded');
     }
 
-    public function sendMessage()
+    public function send()
     {
-        if (empty($this->newMessage) || !$this->telegramUser) {
+        if (!$this->telegramUser) {
             return;
         }
 
+        // $this->validate();
+
         try {
-            // Create message in database
-            $message = TelegramMessage::create([
-                'telegram_user_id' => $this->telegramUser->id,
-                'content' => $this->newMessage,
-                'from_admin' => true,
-                'is_read' => false,
-            ]);
+            if ($this->document) {
+                // Handle document upload
+                $path = $this->document->store('telegram/documents', 'public');
+                $fullPath = storage_path('app/public/' . $path);
 
-            // Send message via Telegram
-            SendTelegramMessage::dispatch(
-                $this->telegramUser->chat_id,
-                $this->newMessage
-            );
+                $fileUrl = $this->fileService->uploadFromUrl($fullPath);
+                Log::info("Document path:", ['fileUrl' => $fileUrl]);
 
-            // Add message to local collection
-            $this->messages->push([
-                'id' => $message->id,
-                'sender' => 'admin',
-                'message' => $this->newMessage,
-                'created_at' => now(),
-                'is_read' => false
-            ]);
+                // Create message in database
+                $message = TelegramMessage::create([
+                    'telegram_user_id' => $this->telegramUser->id,
+                    'content' => $this->message,
+                    'from_admin' => true,
+                    'is_read' => false,
+                    'file_path' => $fileUrl,
+                    'file_type' => $this->document->getMimeType(),
+                    'file_name' => $this->document->getClientOriginalName(),
+                ]);
 
-            $this->newMessage = '';
+                // Send document via Telegram
+                SendTelegramMessage::dispatch(
+                    $this->telegramUser->chat_id,
+                    [
+                        'type' => 'document',
+                        'content' => $fullPath,
+                        'caption' => $this->message
+                    ]
+                );
+
+                // Add message to local collection
+                $this->messages->push([
+                    'id' => $message->id,
+                    'sender' => 'admin',
+                    'message' => $this->message,
+                    'file_path' => $fileUrl,
+                    'file_type' => $this->document->getMimeType(),
+                    'created_at' => now(),
+                    'is_read' => false
+                ]);
+
+                $this->document = null;
+            } elseif ($this->message) {
+                // Handle text message
+                $message = TelegramMessage::create([
+                    'telegram_user_id' => $this->telegramUser->id,
+                    'content' => $this->message,
+                    'from_admin' => true,
+                    'is_read' => false,
+                ]);
+
+                // Send message via Telegram
+                SendTelegramMessage::dispatch(
+                    $this->telegramUser->chat_id,
+                    $this->message
+                );
+
+                // Add message to local collection
+                $this->messages->push([
+                    'id' => $message->id,
+                    'sender' => 'admin',
+                    'message' => $this->message,
+                    'created_at' => now(),
+                    'is_read' => false
+                ]);
+            }
+
+            $this->message = '';
 
             // Dispatch events
             $this->dispatch('messageReceived')->to('telegram-user-list');
@@ -105,7 +166,8 @@ class ChatConversation extends Component
         } catch (\Exception $e) {
             Log::error('Error sending message', [
                 'error' => $e->getMessage(),
-                'user_id' => $this->telegramUser->id
+                'user_id' => $this->telegramUser->id,
+                'trace' => $e->getTraceAsString()
             ]);
 
             // Notify the user of the error
@@ -128,10 +190,10 @@ class ChatConversation extends Component
                     'id' => $message->id,
                     'sender' => $message->from_admin ? 'admin' : 'user',
                     'message' => $message->content,
-                    "file_path" => $message->file_path,
+                    'file_path' => $message->file_path,
                     'created_at' => $message->created_at,
                     'is_read' => $message->is_read,
-                    'file_type'=>$message->file_type
+                    'file_type' => $message->file_type
                 ];
             });
 
@@ -153,10 +215,10 @@ class ChatConversation extends Component
                     'id' => $message->id,
                     'sender' => 'user',
                     'message' => $message->content,
-                    "file_path" => $message->file_path,
+                    'file_path' => $message->file_path,
                     'created_at' => $message->created_at,
                     'is_read' => $message->is_read,
-                    'file_type'=>$message->file_type
+                    'file_type' => $message->file_type
                 ]);
 
                 // Mark the message as read immediately if we're in the conversation

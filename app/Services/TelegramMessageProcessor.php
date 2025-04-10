@@ -77,6 +77,7 @@ class TelegramMessageProcessor
             'caption' => $caption,
         ]);
 
+
         $filePath = $this->fileService->uploadFromUrl(
             $fileUrl,
             'telegram/documents',

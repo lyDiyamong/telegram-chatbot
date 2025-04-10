@@ -1,4 +1,4 @@
-<div class="bg-gray-900 rounded-lg shadow-xl h-screen border-l border-gray-800" >
+<div class="bg-gray-900 rounded-lg shadow-xl h-screen border-l border-gray-800">
     @if ($telegramUser)
         <!-- Chat Header -->
         <div x-data x-init="$nextTick(() => {
@@ -105,18 +105,36 @@
 
         <!-- Chat Input -->
         <div class="p-4 border-t border-gray-800 bg-gray-850">
-            <form wire:submit.prevent="sendMessage" class="flex space-x-2">
-                <flux:input type="text" wire:model="newMessage"
-                    class="flex-1 bg-gray-800 border-gray-700 text-white placeholder-gray-400 focus:border-blue-500 focus:ring-blue-500"
-                    placeholder="Type your message..." autocomplete="off" />
+            <form wire:submit.prevent="send" class="space-y-2">
+                <div class="flex space-x-2">
+                    <flux:input type="text" wire:model="message"
+                        class="flex-1 bg-gray-800 border-gray-700 text-white placeholder-gray-400 focus:border-blue-500 focus:ring-blue-500"
+                        placeholder="Type your message..." autocomplete="off" />
 
-                {{-- <flux:input /> --}}
-                <flux:button type="submit" color="blue">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                        <path
-                            d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
-                    </svg>
-                </flux:button>
+                    <flux:button type="submit" color="blue">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path
+                                d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
+                        </svg>
+                    </flux:button>
+                </div>
+
+                <div class="flex items-center space-x-2">
+                    <flux:input type="file" wire:model="document"
+                        class="flex-1 bg-gray-800 border-gray-700 text-white placeholder-gray-400 focus:border-blue-500 focus:ring-blue-500" />
+                    @if ($document)
+                        <span class="text-sm text-gray-400">{{ $document->getClientOriginalName() }}</span>
+                        <button type="button" wire:click="$set('document', null)"
+                            class="text-red-500 hover:text-red-400">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20"
+                                fill="currentColor">
+                                <path fill-rule="evenodd"
+                                    d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                                    clip-rule="evenodd" />
+                            </svg>
+                        </button>
+                    @endif
+                </div>
             </form>
         </div>
     @else

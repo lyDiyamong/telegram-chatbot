@@ -18,17 +18,37 @@ class TelegramService implements TelegramServiceInterface
     }
 
     /**
-     * Send a text message to a Telegram chat.
+     * Send a message to Telegram chat.
+     *
+     * @param string $chatId The chat ID to send the message to
+     * @param string|array $message The message content. Can be either:
+     *     - string: for text messages
+     *     - array: for document messages with format:
+     *         [
+     *             'type' => 'document',
+     *             'content' => string (file path),
+     *             'caption' => ?string (optional)
+     *         ]
+     * @return bool
      */
-    public function sendMessage(string $chatId, string $message): bool
+    public function sendMessage(string $chatId, string|array $message): bool
     {
         try {
-            $this->telegram->sendMessage([
-                'chat_id' => $chatId,
-                'text' => $message,
-                'parse_mode' => 'HTML',
-            ]);
-            return true;
+            if (is_array($message)) {
+                $messageType = $message['type'] ?? 'text';
+                $content = $message['content'] ?? '';
+                $caption = $message['caption'] ?? null;
+
+                if ($messageType === 'document') {
+                    return $this->sendDocument($chatId, $content, $caption);
+                }
+
+                // Default to text message if type is not recognized
+                return $this->sendTextMessage($chatId, $content);
+            }
+
+            // Handle string message (backwards compatibility)
+            return $this->sendTextMessage($chatId, $message);
         } catch (\Exception $e) {
             Log::error('Error sending Telegram message', [
                 'chat_id' => $chatId,
@@ -39,21 +59,58 @@ class TelegramService implements TelegramServiceInterface
     }
 
     /**
-     * Send a document file (e.g. PDF, DOCX) to Telegram chat.
+     * Send a text message to a Telegram chat.
      */
-    public function sendDocument(string $chatId, string $localFilePath, ?string $caption = null): bool
+    protected function sendTextMessage(string $chatId, string $message): bool
     {
         try {
-            $this->telegram->sendDocument([
+            $this->telegram->sendMessage([
+                'chat_id' => $chatId,
+                'text' => $message,
+                'parse_mode' => 'HTML',
+            ]);
+            return true;
+        } catch (\Exception $e) {
+            Log::error('Error sending Telegram text message', [
+                'chat_id' => $chatId,
+                'error' => $e->getMessage(),
+            ]);
+            return false;
+        }
+    }
+
+    /**
+     * Send a document file (e.g. PDF, DOCX) to Telegram chat.
+     */
+    protected function sendDocument(string $chatId, string $localFilePath, ?string $caption = null): bool
+    {
+        try {
+            if (!file_exists($localFilePath)) {
+                Log::error('File not found when sending document', [
+                    'chat_id' => $chatId,
+                    'file_path' => $localFilePath
+                ]);
+                return false;
+            }
+
+            $message = $this->telegram->sendDocument([
                 'chat_id' => $chatId,
                 'document' => fopen($localFilePath, 'r'),
                 'caption' => $caption,
+            ]);
+
+            Log::info('Telegram document sent', [
+                'chat_id' => $chatId,
+                'file_path' => $localFilePath,
+                'message' => $message,
             ]);
             return true;
         } catch (\Exception $e) {
             Log::error('Error sending Telegram document', [
                 'chat_id' => $chatId,
+                'file_path' => $localFilePath,
                 'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
             ]);
             return false;
         }
