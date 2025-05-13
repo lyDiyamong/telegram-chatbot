@@ -35,11 +35,11 @@ class TelegramMessageProcessor
         }
 
         if (isset($messageData['voice'])) {
-            return $this->processAudio($telegramUser, $messageData['voice']);
+            return $this->processAudio($telegramUser, $messageData['voice'], $messageData['caption'] ?? null);
         }
 
         if (isset($messageData['audio'])) {
-            return $this->processAudio($telegramUser, $messageData['audio']);
+            return $this->processAudio($telegramUser, $messageData['audio'], $messageData['caption'] ?? null);
         }
 
         return null;
@@ -95,7 +95,7 @@ class TelegramMessageProcessor
         ]);
     }
 
-    protected function processAudio(TelegramUser $user, array $audio): TelegramMessage
+    protected function processAudio(TelegramUser $user, array $audio, ?string $caption): TelegramMessage
     {
         $fileInfo = $this->telegramService->downloadFile($audio['file_id'], 'audio');
         $filePath = $this->fileService->uploadFromUrl(
@@ -108,7 +108,7 @@ class TelegramMessageProcessor
 
         return $this->telegramMessage->create([
             'telegram_user_id' => $user->id,
-            'content' => null,
+            'content' => $caption ?? null,
             'file_path' => $filePath,
             'file_type' => 'audio/ogg',
             'file_name' => 'audio.ogg',

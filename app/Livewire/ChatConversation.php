@@ -19,6 +19,8 @@ class ChatConversation extends Component
     public ?TelegramUser $telegramUser = null;
     public string $newMessage = '';
     public Collection $messages;
+    public bool $isRecording = false;
+    public int $recordingDuration = 0;
 
     private FileServiceInterface $fileService;
 
@@ -34,7 +36,10 @@ class ChatConversation extends Component
     public $document;
 
     protected $listeners = [
-        'echo:telegram-messages,.MessageReceived' => 'handleNewMessage'
+        'echo:telegram-messages,.MessageReceived' => 'handleNewMessage',
+        'voiceRecordingStarted' => 'handleRecordingStarted',
+        'voiceRecordingStopped' => 'handleRecordingStopped',
+        'voiceRecordingCancelled' => 'handleRecordingCancelled'
     ];
 
     public function mount()
@@ -236,5 +241,114 @@ class ChatConversation extends Component
         $this->getUpdatedMessages();
 
         return view('livewire.chat-conversation');
+    }
+
+    public function handleRecordingStopped($audioData)
+    {
+        $this->isRecording = false;
+        $fullWebmPath = null;
+
+        if (!$this->telegramUser) {
+            return;
+        }
+
+        try {
+            // Convert base64 to file and store
+            $audioContent = base64_decode(preg_replace('#^data:audio/\w+;base64,#i', '', $audioData));
+
+            // Create directory if it doesn't exist
+            $directory = storage_path('app/public/telegram/voice');
+            if (!file_exists($directory)) {
+                mkdir($directory, 0755, true);
+            }
+
+            // Store the WebM file directly
+            $webmPath = 'telegram/voice/voice_' . time() . '.webm';
+            $fullWebmPath = storage_path('app/public/' . $webmPath);
+
+            if (file_put_contents($fullWebmPath, $audioContent) === false) {
+                throw new \Exception('Failed to write voice file');
+            }
+
+            if (!file_exists($fullWebmPath)) {
+                throw new \Exception('Voice file not found after writing');
+            }
+
+            // Upload to storage service
+            $fileUrl = $this->fileService->uploadFromUrl($fullWebmPath);
+
+            // Create message in database
+            $message = TelegramMessage::create([
+                'telegram_user_id' => $this->telegramUser->id,
+                'content' => $this->message,
+                'from_admin' => true,
+                'is_read' => false,
+                'file_path' => $fileUrl,
+                'file_type' => 'audio/webm',
+                'file_name' => 'voice_message_' . time() . '.webm',
+            ]);
+
+            // Send voice message via Telegram
+            SendTelegramMessage::dispatch(
+                $this->telegramUser->chat_id,
+                [
+                    'type' => 'voice',
+                    'content' => $fullWebmPath,
+                    'caption' => $this->message
+                ]
+            );
+
+            // Add message to local collection
+            $this->messages->push([
+                'id' => $message->id,
+                'sender' => 'admin',
+                'message' => $this->message,
+                'file_path' => $fileUrl,
+                'file_type' => 'audio/webm',
+                'created_at' => $message->created_at,
+                'is_read' => false
+            ]);
+
+            Log::info('Voice message uploaded', [
+                'file_url' => $fileUrl,
+                'duration' => $this->recordingDuration,
+                'format' => 'webm',
+                'file_exists' => file_exists($fullWebmPath),
+                'file_size' => filesize($fullWebmPath)
+            ]);
+
+            // Clean up the file after sending
+            if ($fullWebmPath && file_exists($fullWebmPath)) {
+                unlink($fullWebmPath);
+            }
+        } catch (\Exception $e) {
+            Log::error('Error handling voice message', [
+                'error' => $e->getMessage(),
+                'user_id' => $this->telegramUser->id,
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            // Clean up any temporary files
+            if ($fullWebmPath && file_exists($fullWebmPath)) {
+                unlink($fullWebmPath);
+            }
+
+            // Notify the user of the error
+            $this->dispatch('error', message: 'Failed to send voice message. Please try again.');
+        }
+    }
+
+    #[On('voiceRecordingStarted')]
+    public function handleRecordingStarted()
+    {
+        $this->isRecording = true;
+        $this->recordingDuration = 0;
+    }
+
+    #[On('voiceRecordingCancelled')]
+    public function handleRecordingCancelled()
+    {
+        $this->isRecording = false;
+        $this->recordingDuration = 0;
     }
 }

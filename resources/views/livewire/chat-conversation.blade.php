@@ -107,12 +107,51 @@
         <div class="p-4 border-t border-gray-800 bg-gray-850">
             <form wire:submit.prevent="send" class="space-y-2">
                 <div class="flex space-x-2">
-                    <flux:input type="text" wire:model="message"
-                        class="flex-1 bg-gray-800 border-gray-700 text-white placeholder-gray-400 focus:border-blue-500 focus:ring-blue-500"
-                        placeholder="Type your message..." autocomplete="off" />
+                    <div class="relative flex-1 flex items-center" wire:ignore>
+                        <flux:input type="text" wire:model="message"
+                            class="flex-1 bg-gray-800 border-gray-700 text-white placeholder-gray-400 focus:border-blue-500 focus:ring-blue-500"
+                            placeholder="Type your message..." autocomplete="off" />
 
-                    <flux:button type="submit" color="blue">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <!-- Voice Recording Button -->
+                        <div x-data="voiceRecorder()" x-init="init()" class="absolute right-2">
+                            <button type="button" x-show="!recording" @click.prevent="startRecording"
+                                class="p-2 text-gray-400 hover:text-blue-500 transition-colors duration-200">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20"
+                                    fill="currentColor">
+                                    <path fill-rule="evenodd"
+                                        d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z"
+                                        clip-rule="evenodd" />
+                                </svg>
+                            </button>
+
+                            <!-- Recording Interface -->
+                            <div x-show="recording" class="flex items-center space-x-2">
+                                <span class="text-red-500 animate-pulse" x-text="formatDuration(duration)"></span>
+                                <button type="button" @click.prevent="stopRecording"
+                                    class="p-2 text-blue-500 hover:text-blue-400">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20"
+                                        fill="currentColor">
+                                        <path fill-rule="evenodd"
+                                            d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z"
+                                            clip-rule="evenodd" />
+                                    </svg>
+                                </button>
+                                <button type="button" @click.prevent="cancelRecording"
+                                    class="p-2 text-red-500 hover:text-red-400">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20"
+                                        fill="currentColor">
+                                        <path fill-rule="evenodd"
+                                            d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                                            clip-rule="evenodd" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <flux:button type="submit" color="blue" x-bind:disabled="$wire.isRecording">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20"
+                            fill="currentColor">
                             <path
                                 d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
                         </svg>
@@ -180,5 +219,103 @@
                 subtree: true
             });
         }
+
+        // Voice Recorder Alpine Component
+        Alpine.data('voiceRecorder', () => ({
+            mediaRecorder: null,
+            audioChunks: [],
+            duration: 0,
+            timer: null,
+            recording: false,
+
+            init() {
+                this.recording = false;
+                this.duration = 0;
+            },
+
+            async startRecording() {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({
+                        audio: true
+                    });
+
+                    // Use WebM with Opus codec (widely supported)
+                    const options = {
+                        mimeType: 'audio/webm;codecs=opus',
+                        audioBitsPerSecond: 128000
+                    };
+
+                    this.mediaRecorder = new MediaRecorder(stream, options);
+                    this.audioChunks = [];
+
+                    this.mediaRecorder.ondataavailable = (event) => {
+                        this.audioChunks.push(event.data);
+                    };
+
+                    this.mediaRecorder.onstop = async () => {
+                        const audioBlob = new Blob(this.audioChunks, {
+                            type: 'audio/webm;codecs=opus'
+                        });
+                        const reader = new FileReader();
+                        reader.readAsDataURL(audioBlob);
+                        reader.onloadend = () => {
+                            Livewire.dispatch('voiceRecordingStopped', {
+                                audioData: reader.result
+                            });
+                        };
+                        this.stopTimer();
+                        stream.getTracks().forEach(track => track.stop());
+                    };
+
+                    // Request data every second to ensure we get all the audio
+                    this.mediaRecorder.start(1000);
+                    this.startTimer();
+                    this.recording = true;
+                    Livewire.dispatch('voiceRecordingStarted');
+                } catch (error) {
+                    console.error('Error accessing microphone:', error);
+                    alert(
+                        'Could not access microphone. Please check your browser permissions and make sure you are using a supported browser.'
+                        );
+                }
+            },
+
+            stopRecording() {
+                if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
+                    this.mediaRecorder.stop();
+                    this.recording = false;
+                }
+            },
+
+            cancelRecording() {
+                if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
+                    this.mediaRecorder.stop();
+                    this.audioChunks = [];
+                    this.stopTimer();
+                    this.recording = false;
+                    Livewire.dispatch('voiceRecordingCancelled');
+                }
+            },
+
+            startTimer() {
+                this.duration = 0;
+                this.timer = setInterval(() => {
+                    this.duration++;
+                }, 1000);
+            },
+
+            stopTimer() {
+                if (this.timer) {
+                    clearInterval(this.timer);
+                    this.timer = null;
+                }
+            },
+
+            formatDuration(seconds) {
+                const minutes = Math.floor(seconds / 60);
+                const remainingSeconds = seconds % 60;
+                return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+            }
+        }));
     });
 </script>

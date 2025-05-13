@@ -41,6 +41,10 @@ class TelegramService implements TelegramServiceInterface
 
                 if ($messageType === 'document') {
                     return $this->sendDocument($chatId, $content, $caption);
+                } else if ($messageType === 'audio') {
+                    return $this->sendAudio($chatId, $content, $caption);
+                } else if ($messageType === 'voice') {
+                    return $this->sendVoice($chatId, $content, $caption);
                 }
 
                 // Default to text message if type is not recognized
@@ -93,9 +97,9 @@ class TelegramService implements TelegramServiceInterface
                 return false;
             }
 
-            $message = $this->telegram->sendDocument([
+            $message = $this->telegram->sendPhoto([
                 'chat_id' => $chatId,
-                'document' => fopen($localFilePath, 'r'),
+                'photo' => fopen($localFilePath, 'r'),
                 'caption' => $caption,
             ]);
 
@@ -104,11 +108,73 @@ class TelegramService implements TelegramServiceInterface
                 'file_path' => $localFilePath,
                 'message' => $message,
             ]);
+
             return true;
         } catch (\Exception $e) {
             Log::error('Error sending Telegram document', [
                 'chat_id' => $chatId,
                 'file_path' => $localFilePath,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return false;
+        }
+    }
+
+    public function sendAudio(string $chatId, string $audioFilePath, ?string $caption = null): bool
+    {
+        try {
+            $message = $this->telegram->sendAudio([
+                'chat_id' => $chatId,
+                'audio' => fopen($audioFilePath, 'r'),
+                'caption' => null,
+            ]);
+
+            Log::info('Telegram audio sent', [
+                'chat_id' => $chatId,
+                'file_path' => $audioFilePath,
+                'message' => $message,
+            ]);
+
+            return true;
+        } catch (\Exception $e) {
+            Log::error('Error sending Telegram audio', [
+                'chat_id' => $chatId,
+                'file_path' => $audioFilePath,
+                'error' => $e->getMessage(),
+            ]);
+            return false;
+        }
+    }
+
+    public function sendVoice(string $chatId, string $voiceFilePath, ?string $caption = null): bool
+    {
+        try {
+            if (!file_exists($voiceFilePath)) {
+                Log::error('Voice file not found', [
+                    'chat_id' => $chatId,
+                    'file_path' => $voiceFilePath
+                ]);
+                return false;
+            }
+
+            $message = $this->telegram->sendVoice([
+                'chat_id' => $chatId,
+                'voice' => fopen($voiceFilePath, 'r'),
+                'caption' => $caption,
+            ]);
+
+            Log::info('Telegram voice message sent', [
+                'chat_id' => $chatId,
+                'file_path' => $voiceFilePath,
+                'message' => $message,
+            ]);
+
+            return true;
+        } catch (\Exception $e) {
+            Log::error('Error sending Telegram voice message', [
+                'chat_id' => $chatId,
+                'file_path' => $voiceFilePath,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
